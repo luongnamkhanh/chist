@@ -27,4 +27,4 @@ def log_path() -> Path:
 def cwd_project_name(cwd: Path | None = None) -> str:
     """Return Claude Code's sanitized cwd format: '/foo/bar' -> '-foo-bar'."""
     p = cwd if cwd is not None else Path.cwd()
-    return str(p.resolve()).replace("/", "-")
+    return str(p).replace("/", "-")
