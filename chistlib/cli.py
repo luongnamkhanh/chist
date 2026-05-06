@@ -73,6 +73,32 @@ def _cmd_search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_list(args: argparse.Namespace) -> int:
+    from chistlib import list_show
+    rows = list_show.list_sessions(
+        paths.db_path(), project=args.project, since=args.since, limit=args.limit
+    )
+    if args.format == "json":
+        import json as _json
+        print(_json.dumps(rows, ensure_ascii=False))
+    else:
+        print(list_show.format_list_human(rows))
+    return 0
+
+
+def _cmd_show(args: argparse.Namespace) -> int:
+    from chistlib import list_show
+    try:
+        out = list_show.show_session(
+            paths.db_path(), args.prefix, head=args.head, tail=args.tail
+        )
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    print(out)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="chist", description="Claude Code history manager")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -92,6 +118,19 @@ def build_parser() -> argparse.ArgumentParser:
     ps.add_argument("--limit", type=int, default=20)
     ps.add_argument("--format", choices=["human", "json"], default="human")
     ps.set_defaults(func=_cmd_search)
+
+    pl = sub.add_parser("list", help="list sessions")
+    pl.add_argument("--project", default=None)
+    pl.add_argument("--since", default=None)
+    pl.add_argument("--limit", type=int, default=50)
+    pl.add_argument("--format", choices=["human", "json"], default="human")
+    pl.set_defaults(func=_cmd_list)
+
+    psh = sub.add_parser("show", help="show a session by id or prefix")
+    psh.add_argument("prefix")
+    psh.add_argument("--head", type=int, default=None)
+    psh.add_argument("--tail", type=int, default=None)
+    psh.set_defaults(func=_cmd_show)
 
     return p
 
