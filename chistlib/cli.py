@@ -144,6 +144,39 @@ def _cmd_banner(args: argparse.Namespace) -> int:
     return 0
 
 
+def _parse_duration(s: str) -> int:
+    s = s.strip().lower()
+    units = {"d": 1, "w": 7, "y": 365}
+    if not s or s[-1] not in units:
+        raise ValueError(f"invalid duration '{s}'; use Nd, Nw, or Ny")
+    n = int(s[:-1])
+    return n * units[s[-1]]
+
+
+def _cmd_prune(args: argparse.Namespace) -> int:
+    from chistlib import archive as archivemod
+    days = _parse_duration(args.older_than)
+    res = archivemod.prune(
+        db_path=paths.db_path(),
+        archive_root=paths.archive_dir(),
+        projects_root=paths.projects_dir(),
+        older_than_days=days,
+        dry_run=args.dry_run,
+    )
+    if args.dry_run:
+        print(f"would archive {res.would_archive} session(s)")
+    else:
+        print(f"archived {res.archived} session(s), freed {res.bytes_freed} bytes")
+    return 0
+
+
+def _cmd_vacuum(args: argparse.Namespace) -> int:
+    from chistlib import archive as archivemod
+    archivemod.vacuum(paths.db_path())
+    print("vacuum complete")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="chist", description="Claude Code history manager")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -194,6 +227,14 @@ def build_parser() -> argparse.ArgumentParser:
     pb.add_argument("--project", default=None)
     pb.add_argument("--cwd-project", action="store_true")
     pb.set_defaults(func=_cmd_banner)
+
+    pp = sub.add_parser("prune", help="archive old JSONL files (gzip)")
+    pp.add_argument("--older-than", required=True, help="duration like 180d, 12w, 1y")
+    pp.add_argument("--dry-run", action="store_true")
+    pp.set_defaults(func=_cmd_prune)
+
+    pv = sub.add_parser("vacuum", help="rebuild FTS5 index and VACUUM the db")
+    pv.set_defaults(func=_cmd_vacuum)
 
     return p
 
