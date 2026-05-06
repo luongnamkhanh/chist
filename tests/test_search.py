@@ -48,7 +48,7 @@ class TestSearch(unittest.TestCase):
     def test_search_filter_by_project(self):
         buf = io.StringIO()
         with patch("sys.stdout", buf):
-            rc = cli.main(["search", "ok", "--project", "-proj-b"])
+            rc = cli.main(["search", "ok", "--project=-proj-b"])
         self.assertEqual(rc, 0)
         self.assertIn("sessB", buf.getvalue())
         self.assertNotIn("sessA", buf.getvalue())

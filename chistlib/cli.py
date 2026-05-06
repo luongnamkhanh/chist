@@ -96,25 +96,8 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def _preprocess_argv(argv: list[str]) -> list[str]:
-    """Convert ['--option', '-value'] to ['--option=-value'] to work around
-    argparse's limitation with negative-looking argument values."""
-    result = []
-    i = 0
-    while i < len(argv):
-        if argv[i].startswith('--') and i + 1 < len(argv) and argv[i+1].startswith('-') and not argv[i+1].lstrip('-').isdigit():
-            result.append(f"{argv[i]}={argv[i+1]}")
-            i += 2
-        else:
-            result.append(argv[i])
-            i += 1
-    return result
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    if argv is not None:
-        argv = _preprocess_argv(argv)
     args = parser.parse_args(argv)
     return args.func(args)
 
