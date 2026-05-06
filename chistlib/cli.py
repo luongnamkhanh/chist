@@ -49,6 +49,30 @@ def _print_stats(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_search(args: argparse.Namespace) -> int:
+    from chistlib import search as searchmod
+    stale = searchmod.is_index_stale(paths.db_path(), paths.projects_dir())
+    if stale > 0:
+        print(
+            f"[chist] index stale by {stale} file(s); run 'chist index --incremental'",
+            file=sys.stderr,
+        )
+    hits = searchmod.search(
+        db_path=paths.db_path(),
+        query=args.query,
+        project=args.project,
+        since=args.since,
+        until=args.until,
+        role=args.role,
+        limit=args.limit,
+    )
+    if args.format == "json":
+        print(searchmod.format_json(hits))
+    else:
+        print(searchmod.format_human(hits))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="chist", description="Claude Code history manager")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -59,11 +83,38 @@ def build_parser() -> argparse.ArgumentParser:
     pi.add_argument("--stats", action="store_true", help="print index statistics and exit")
     pi.set_defaults(func=_cmd_index)
 
+    ps = sub.add_parser("search", help="search past sessions")
+    ps.add_argument("query", help="search terms")
+    ps.add_argument("--project", default=None, help="filter by project")
+    ps.add_argument("--since", default=None, help="ISO date or datetime")
+    ps.add_argument("--until", default=None, help="ISO date or datetime")
+    ps.add_argument("--role", choices=["user", "assistant", "tool_use", "tool_result"], default=None)
+    ps.add_argument("--limit", type=int, default=20)
+    ps.add_argument("--format", choices=["human", "json"], default="human")
+    ps.set_defaults(func=_cmd_search)
+
     return p
+
+
+def _preprocess_argv(argv: list[str]) -> list[str]:
+    """Convert ['--option', '-value'] to ['--option=-value'] to work around
+    argparse's limitation with negative-looking argument values."""
+    result = []
+    i = 0
+    while i < len(argv):
+        if argv[i].startswith('--') and i + 1 < len(argv) and argv[i+1].startswith('-') and not argv[i+1].lstrip('-').isdigit():
+            result.append(f"{argv[i]}={argv[i+1]}")
+            i += 2
+        else:
+            result.append(argv[i])
+            i += 1
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
+    if argv is not None:
+        argv = _preprocess_argv(argv)
     args = parser.parse_args(argv)
     return args.func(args)
 
