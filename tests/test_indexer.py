@@ -100,6 +100,28 @@ class TestIndexer(unittest.TestCase):
         result = indexer.index(self.dbp, self.root / "projects", incremental=True)
         self.assertEqual(result.sessions_indexed, 1)
 
+    def test_disappearing_file_is_skipped_not_fatal(self):
+        path = _make_session(
+            self.root, "-proj-a", "ghost", fixtures.sample_session_records()
+        )
+        # Pre-populate state for one good session
+        _make_session(self.root, "-proj-a", "good", fixtures.sample_session_records())
+        # Simulate disappearance: delete after glob would see it (we mimic
+        # by patching Path.stat on the ghost path to raise FileNotFoundError)
+        from unittest.mock import patch
+        original_stat = Path.stat
+
+        def fake_stat(self_path, *args, **kwargs):
+            if self_path.name == "ghost.jsonl":
+                raise FileNotFoundError(str(self_path))
+            return original_stat(self_path, *args, **kwargs)
+
+        with patch.object(Path, "stat", fake_stat):
+            result = indexer.index(self.dbp, self.root / "projects", incremental=False)
+        # ghost was skipped, good was indexed
+        self.assertEqual(result.sessions_indexed, 1)
+        self.assertEqual(result.sessions_skipped, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

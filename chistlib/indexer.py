@@ -73,11 +73,11 @@ def index(db_path: Path, projects_root: Path, incremental: bool = True) -> Index
 
         for jsonl in projects_root.glob("*/*.jsonl"):
             sid = _session_id_from_path(jsonl)
-            mtime = jsonl.stat().st_mtime
-            if incremental and sid in prior and mtime <= prior[sid]:
-                sessions_skipped += 1
-                continue
             try:
+                mtime = jsonl.stat().st_mtime
+                if incremental and sid in prior and mtime <= prior[sid]:
+                    sessions_skipped += 1
+                    continue
                 records = list(parser.parse_file(jsonl))
             except OSError:
                 sessions_skipped += 1
