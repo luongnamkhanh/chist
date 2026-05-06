@@ -133,6 +133,17 @@ def _cmd_resume(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_banner(args: argparse.Namespace) -> int:
+    from chistlib import banner as bannermod
+    project = args.project
+    if args.cwd_project or project is None:
+        project = paths.cwd_project_name()
+    text = bannermod.render(paths.db_path(), project)
+    if text:
+        print(text)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="chist", description="Claude Code history manager")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -178,6 +189,11 @@ def build_parser() -> argparse.ArgumentParser:
     pr.add_argument("--project", default=None)
     pr.add_argument("--full", action="store_true")
     pr.set_defaults(func=_cmd_resume)
+
+    pb = sub.add_parser("banner", help="print one-line cwd-project banner")
+    pb.add_argument("--project", default=None)
+    pb.add_argument("--cwd-project", action="store_true")
+    pb.set_defaults(func=_cmd_banner)
 
     return p
 
