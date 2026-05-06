@@ -116,6 +116,23 @@ def _cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_resume(args: argparse.Namespace) -> int:
+    from chistlib import resume as resumemod
+    try:
+        text = resumemod.resume(
+            paths.db_path(),
+            prefix=args.prefix,
+            last=args.last,
+            project=args.project,
+            full=args.full,
+        )
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    print(text)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="chist", description="Claude Code history manager")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -154,6 +171,13 @@ def build_parser() -> argparse.ArgumentParser:
     pe.add_argument("-o", "--output", default=None)
     pe.add_argument("--since-message", type=int, default=None)
     pe.set_defaults(func=_cmd_export)
+
+    pr = sub.add_parser("resume", help="resume a session (distilled by default)")
+    pr.add_argument("prefix", nargs="?", default=None)
+    pr.add_argument("--last", action="store_true")
+    pr.add_argument("--project", default=None)
+    pr.add_argument("--full", action="store_true")
+    pr.set_defaults(func=_cmd_resume)
 
     return p
 
