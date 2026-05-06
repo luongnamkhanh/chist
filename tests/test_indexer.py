@@ -100,6 +100,31 @@ class TestIndexer(unittest.TestCase):
         result = indexer.index(self.dbp, self.root / "projects", incremental=True)
         self.assertEqual(result.sessions_indexed, 1)
 
+    def test_full_reindex_removes_sessions_whose_files_were_deleted(self):
+        keep = _make_session(self.root, "-proj-a", "keep", fixtures.sample_session_records())
+        gone = _make_session(self.root, "-proj-a", "gone", fixtures.sample_session_records())
+        indexer.index(self.dbp, self.root / "projects", incremental=False)
+        gone.unlink()
+        result = indexer.index(self.dbp, self.root / "projects", incremental=False)
+        self.assertEqual(result.sessions_indexed, 1)
+        with db.connect(self.dbp) as con:
+            ids = {r["session_id"] for r in con.execute("SELECT session_id FROM sessions")}
+            self.assertEqual(ids, {"keep"})
+            n_msgs = con.execute(
+                "SELECT COUNT(*) AS c FROM messages WHERE session_id='gone'"
+            ).fetchone()["c"]
+            self.assertEqual(n_msgs, 0)
+
+    def test_incremental_reindex_does_not_remove_deleted_files(self):
+        _make_session(self.root, "-proj-a", "keep", fixtures.sample_session_records())
+        gone = _make_session(self.root, "-proj-a", "gone", fixtures.sample_session_records())
+        indexer.index(self.dbp, self.root / "projects", incremental=False)
+        gone.unlink()
+        indexer.index(self.dbp, self.root / "projects", incremental=True)
+        with db.connect(self.dbp) as con:
+            ids = {r["session_id"] for r in con.execute("SELECT session_id FROM sessions")}
+            self.assertEqual(ids, {"keep", "gone"})
+
     def test_disappearing_file_is_skipped_not_fatal(self):
         path = _make_session(
             self.root, "-proj-a", "ghost", fixtures.sample_session_records()

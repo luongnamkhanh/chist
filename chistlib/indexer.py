@@ -71,10 +71,12 @@ def index(db_path: Path, projects_root: Path, incremental: bool = True) -> Index
             for r in con.execute("SELECT session_id, file_mtime FROM sessions")
         }
 
+        seen: set[str] = set()
         for jsonl in projects_root.glob("*/*.jsonl"):
             sid = _session_id_from_path(jsonl)
             try:
                 mtime = jsonl.stat().st_mtime
+                seen.add(sid)
                 if incremental and sid in prior and mtime <= prior[sid]:
                     sessions_skipped += 1
                     continue
@@ -86,6 +88,11 @@ def index(db_path: Path, projects_root: Path, incremental: bool = True) -> Index
             n = _upsert_session(con, sid, project, jsonl, mtime, records)
             sessions_indexed += 1
             messages_indexed += n
+
+        if not incremental:
+            stale = [sid for sid in prior if sid not in seen]
+            for sid in stale:
+                con.execute("DELETE FROM sessions WHERE session_id = ?", (sid,))
 
         con.execute(
             "INSERT INTO index_meta(key,value) VALUES('last_incremental_at', ?) "
