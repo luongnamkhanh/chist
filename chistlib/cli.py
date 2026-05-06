@@ -99,6 +99,23 @@ def _cmd_show(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_export(args: argparse.Namespace) -> int:
+    from chistlib import export as exportmod
+    try:
+        text = exportmod.export_session(
+            paths.db_path(), args.prefix, since_message=args.since_message
+        )
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+    if args.output:
+        Path(args.output).write_text(text, encoding="utf-8")
+        print(f"wrote {args.output}")
+    else:
+        print(text)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="chist", description="Claude Code history manager")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -131,6 +148,12 @@ def build_parser() -> argparse.ArgumentParser:
     psh.add_argument("--head", type=int, default=None)
     psh.add_argument("--tail", type=int, default=None)
     psh.set_defaults(func=_cmd_show)
+
+    pe = sub.add_parser("export", help="export a session to Markdown")
+    pe.add_argument("prefix")
+    pe.add_argument("-o", "--output", default=None)
+    pe.add_argument("--since-message", type=int, default=None)
+    pe.set_defaults(func=_cmd_export)
 
     return p
 
