@@ -1,0 +1,17 @@
+[project]
+name = "chist"
+version = "0.1.0"
+description = "Claude Code history search, resume, export"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+chist = "chistlib.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["chistlib*"]
+exclude = ["tests*"]
