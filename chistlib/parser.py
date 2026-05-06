@@ -16,6 +16,8 @@ class Record:
 def _flatten_content(content) -> tuple[str, str]:
     """Return (role_override, flattened_text). role_override is non-empty for
     tool_use / tool_result blocks."""
+    if content is None:
+        return ("", "")
     if isinstance(content, str):
         return ("", content)
     if not isinstance(content, list):
@@ -58,6 +60,9 @@ def parse_line(line: str) -> Optional[Record]:
     try:
         obj = json.loads(line)
     except json.JSONDecodeError:
+        return None
+
+    if not isinstance(obj, dict):
         return None
 
     msg = obj.get("message") or {}
