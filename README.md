@@ -5,7 +5,7 @@
 ## Install
 
 ```
-git clone <repo> ~/tools/claude-history
+git clone https://github.com/luongnamkhanh/chist.git ~/tools/claude-history
 ln -s ~/tools/claude-history/chist ~/.local/bin/chist
 chist index           # initial full index of all existing sessions
 ```
