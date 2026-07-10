@@ -29,7 +29,14 @@ chist vacuum                   # rebuild FTS5 + VACUUM
 
 ## Slash commands and skill
 
-Three slash commands shell out to the CLI:
+Three slash commands shell out to the CLI. Symlink them into place:
+
+```
+ln -s ~/tools/claude-history/commands/history-search.md ~/.claude/commands/history-search.md
+ln -s ~/tools/claude-history/commands/history-resume.md ~/.claude/commands/history-resume.md
+ln -s ~/tools/claude-history/commands/history-export.md ~/.claude/commands/history-export.md
+ln -s ~/tools/claude-history/skills/claude-history ~/.claude/skills/claude-history
+```
 
 - `/history-search <query>`
 - `/history-resume <id>`
