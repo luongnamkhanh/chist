@@ -116,7 +116,7 @@ def format_human(hits: Iterable[Hit]) -> str:
     lines = []
     for h in hits:
         date = (h.started_at or "")[:16].replace("T", " ")
-        sid = h.session_id[:8]
+        sid = db.short_id(h.session_id)
         lines.append(f"{sid}  {h.project}  {date}  {h.snippet}")
     return "\n".join(lines)
 

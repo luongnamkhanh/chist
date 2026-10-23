@@ -15,12 +15,14 @@ class TestCliIndex(unittest.TestCase):
         self.root = Path(self.tmp.name)
         (self.root / "projects").mkdir()
         os.environ["CLAUDE_HOME"] = str(self.root)
+        os.environ["CODEX_HOME"] = str(self.root / "codex")
 
         sess = self.root / "projects" / "-proj-a" / "sess1.jsonl"
         fixtures.write_jsonl(sess, fixtures.sample_session_records())
 
     def tearDown(self):
         os.environ.pop("CLAUDE_HOME", None)
+        os.environ.pop("CODEX_HOME", None)
         self.tmp.cleanup()
 
     def test_index_command_prints_summary(self):

@@ -47,7 +47,7 @@ def list_sessions(
 def format_list_human(rows: list[dict]) -> str:
     out = []
     for r in rows:
-        sid = r["session_id"][:8]
+        sid = db.short_id(r["session_id"])
         date = (r.get("started_at") or "")[:16].replace("T", " ")
         out.append(f"{sid}  {r['project']}  {date}  msgs={r['msg_count']}")
     return "\n".join(out)
