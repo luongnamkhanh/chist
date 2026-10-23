@@ -2,6 +2,8 @@
 
 `chist` indexes, searches, resumes, and exports Claude Code session transcripts (the JSONL files written under `~/.claude/projects/`).
 
+It also indexes Codex rollouts (`~/.codex/sessions/**/rollout-*.jsonl`, override with `CODEX_HOME`) into the same index under `codex-<uuid>` ids, so either tool can search, resume, or take over the other's sessions.
+
 ## Install
 
 ```

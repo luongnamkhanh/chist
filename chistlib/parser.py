@@ -80,3 +80,50 @@ def parse_file(path: Path) -> Iterator[Record]:
             rec = parse_line(line)
             if rec is not None:
                 yield rec
+
+
+_CODEX_INJECTED = ("<environment_context>", "AGENTS.md instructions", "<user_instructions>")
+
+
+def _codex_record(obj: dict) -> Optional[Record]:
+    if obj.get("type") != "response_item":
+        return None
+    p = obj.get("payload") or {}
+    ptype = p.get("type")
+    ts = obj.get("timestamp")
+    if ptype == "message" and p.get("role") in ("user", "assistant"):
+        text = "\n".join(
+            c.get("text", "") for c in p.get("content") or [] if isinstance(c, dict)
+        )
+        if not text or text.lstrip().startswith(_CODEX_INJECTED):
+            return None
+        return Record(role=p["role"], timestamp=ts, content=text)
+    if ptype in ("function_call", "custom_tool_call"):
+        args = p.get("arguments") or p.get("input") or ""
+        return Record(role="tool_use", timestamp=ts, content=f"[tool_use:{p.get('name', '')}] {args}")
+    if ptype in ("function_call_output", "custom_tool_call_output"):
+        out = p.get("output")
+        out = out if isinstance(out, str) else json.dumps(out, ensure_ascii=False)
+        return Record(role="tool_result", timestamp=ts, content=f"[tool_result] {out}")
+    return None
+
+
+def parse_codex_file(path: Path) -> tuple[str, str, list[Record]]:
+    """Return (session_id, cwd, records) for a Codex rollout-*.jsonl."""
+    sid, cwd, records = path.stem, "", []
+    with path.open("r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(obj, dict):
+                continue
+            if obj.get("type") == "session_meta":
+                meta = obj.get("payload") or {}
+                sid, cwd = meta.get("id") or sid, meta.get("cwd") or ""
+                continue
+            rec = _codex_record(obj)
+            if rec is not None:
+                records.append(rec)
+    return sid, cwd, records

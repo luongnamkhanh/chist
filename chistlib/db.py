@@ -83,3 +83,8 @@ def connect(path: Path):
         con.commit()
     finally:
         con.close()
+
+
+def short_id(sid: str) -> str:
+    """8-char display id; Codex ids keep their 'codex-' prefix since UUIDv7 heads collide."""
+    return sid[:14] if sid.startswith("codex-") else sid[:8]

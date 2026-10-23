@@ -42,7 +42,7 @@ def render(db_path: Path, project: str) -> str:
     sid = row["session_id"]
     when = _humanize(row["started_at"])
     return (
-        f"[claude-history] Most recent session in this project: {sid[:8]} "
+        f"[claude-history] Most recent session in this project: {db.short_id(sid)} "
         f"({when}, {row['msg_count']} messages)\n"
-        f"                 Resume with: /history-resume {sid[:8]}"
+        f"                 Resume with: /history-resume {db.short_id(sid)}"
     )

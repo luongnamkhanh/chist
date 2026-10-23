@@ -12,6 +12,10 @@ def projects_dir() -> Path:
     return claude_home() / "projects"
 
 
+def codex_sessions_dir() -> Path:
+    return Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "sessions"
+
+
 def db_path() -> Path:
     return claude_home() / "history.db"
 
