@@ -127,3 +127,41 @@ def parse_codex_file(path: Path) -> tuple[str, str, list[Record]]:
             if rec is not None:
                 records.append(rec)
     return sid, cwd, records
+
+
+def _kiro_record(obj: dict) -> Optional[Record]:
+    p = obj.get("payload") or {}
+    ptype, ts = p.get("type"), obj.get("timestamp")
+    if ptype == "user" or (ptype == "assistant" and p.get("operationType") != "Reasoning"):
+        text = p.get("content")
+        return Record(role=ptype, timestamp=ts, content=text) if isinstance(text, str) and text else None
+    if ptype == "tool_call":
+        return Record(role="tool_use", timestamp=ts,
+                      content=f"[tool_use:{p.get('toolName', '')}] {json.dumps(p.get('args'), ensure_ascii=False)}")
+    if ptype == "tool_result":
+        out = p.get("content")
+        out = out if isinstance(out, str) else json.dumps(out, ensure_ascii=False)
+        return Record(role="tool_result", timestamp=ts, content=f"[tool_result] {out}")
+    return None
+
+
+def parse_kiro_session(session_dir: Path) -> tuple[str, str, list[Record]]:
+    """Return (session_id, cwd, records) for a Kiro ~/.kiro/sessions/<hash>/sess_<uuid>/ dir."""
+    sid, cwd = session_dir.name.removeprefix("sess_"), ""
+    try:
+        meta = json.loads((session_dir / "session.json").read_text(encoding="utf-8"))
+        sid = (meta.get("id") or sid).removeprefix("sess_")
+        cwd = (meta.get("workspacePaths") or [""])[0]
+    except (OSError, json.JSONDecodeError, AttributeError):
+        pass
+    records = []
+    with (session_dir / "messages.jsonl").open("r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            rec = _kiro_record(obj) if isinstance(obj, dict) else None
+            if rec is not None:
+                records.append(rec)
+    return sid, cwd, records

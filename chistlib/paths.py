@@ -16,6 +16,10 @@ def codex_sessions_dir() -> Path:
     return Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "sessions"
 
 
+def kiro_sessions_dir() -> Path:
+    return Path(os.environ.get("KIRO_HOME", Path.home() / ".kiro")) / "sessions"
+
+
 def db_path() -> Path:
     return claude_home() / "history.db"
 

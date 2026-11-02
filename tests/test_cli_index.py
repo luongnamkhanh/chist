@@ -16,6 +16,7 @@ class TestCliIndex(unittest.TestCase):
         (self.root / "projects").mkdir()
         os.environ["CLAUDE_HOME"] = str(self.root)
         os.environ["CODEX_HOME"] = str(self.root / "codex")
+        os.environ["KIRO_HOME"] = str(self.root / "kiro")
 
         sess = self.root / "projects" / "-proj-a" / "sess1.jsonl"
         fixtures.write_jsonl(sess, fixtures.sample_session_records())
@@ -23,6 +24,7 @@ class TestCliIndex(unittest.TestCase):
     def tearDown(self):
         os.environ.pop("CLAUDE_HOME", None)
         os.environ.pop("CODEX_HOME", None)
+        os.environ.pop("KIRO_HOME", None)
         self.tmp.cleanup()
 
     def test_index_command_prints_summary(self):

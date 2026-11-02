@@ -55,11 +55,13 @@ def _upsert_session(con, session_id: str, project: str, file_path: Path,
 
 
 CODEX_PREFIX = "codex-"
+KIRO_PREFIX = "kiro-"
 
 
-def _index_codex(con, codex_root: Path, prior: dict, seen: set, incremental: bool) -> tuple[int, int, int]:
+def _index_external(con, files, parse, prefix: str, prior: dict, seen: set,
+                    incremental: bool) -> tuple[int, int, int]:
     indexed = messages = skipped = 0
-    for jsonl in codex_root.glob("*/*/*/rollout-*.jsonl"):
+    for jsonl in files:
         try:
             mtime = jsonl.stat().st_mtime
             known = prior.get(str(jsonl))
@@ -68,27 +70,27 @@ def _index_codex(con, codex_root: Path, prior: dict, seen: set, incremental: boo
                 if incremental and mtime <= known[1]:
                     skipped += 1
                     continue
-            sid, cwd, records = parser.parse_codex_file(jsonl)
+            sid, cwd, records = parse(jsonl)
         except OSError:
             skipped += 1
             continue
-        sid = CODEX_PREFIX + sid
+        sid = prefix + sid
         seen.add(sid)
-        # Same sanitized-cwd format as Claude project dirs, so --project filters match both.
-        project = paths.cwd_project_name(Path(cwd)) if cwd else "codex"
+        # Same sanitized-cwd format as Claude project dirs, so --project filters match all tools.
+        project = paths.cwd_project_name(Path(cwd)) if cwd else prefix.rstrip("-")
         messages += _upsert_session(con, sid, project, jsonl, mtime, records)
         indexed += 1
     return indexed, messages, skipped
 
 
 def index(db_path: Path, projects_root: Path, incremental: bool = True,
-          codex_root: Path | None = None) -> IndexResult:
+          codex_root: Path | None = None, kiro_root: Path | None = None) -> IndexResult:
     start = time.time()
     sessions_indexed = 0
     messages_indexed = 0
     sessions_skipped = 0
 
-    if not projects_root.exists() and not (codex_root and codex_root.exists()):
+    if not any(r and r.exists() for r in (projects_root, codex_root, kiro_root)):
         return IndexResult(0, 0, 0, time.time() - start)
 
     db.init_schema(db_path)
@@ -96,9 +98,9 @@ def index(db_path: Path, projects_root: Path, incremental: bool = True,
     with db.connect(db_path) as con:
         rows = con.execute("SELECT session_id, file_path, file_mtime FROM sessions").fetchall()
         prior = {r["session_id"]: r["file_mtime"] for r in rows}
-        codex_prior = {
+        external_prior = {
             r["file_path"]: (r["session_id"], r["file_mtime"])
-            for r in rows if r["session_id"].startswith(CODEX_PREFIX)
+            for r in rows if r["session_id"].startswith((CODEX_PREFIX, KIRO_PREFIX))
         }
 
         seen: set[str] = set()
@@ -119,8 +121,14 @@ def index(db_path: Path, projects_root: Path, incremental: bool = True,
             sessions_indexed += 1
             messages_indexed += n
 
+        sources = []
         if codex_root is not None and codex_root.exists():
-            ci, cm, cs = _index_codex(con, codex_root, codex_prior, seen, incremental)
+            sources.append((codex_root.glob("*/*/*/rollout-*.jsonl"), parser.parse_codex_file, CODEX_PREFIX))
+        if kiro_root is not None and kiro_root.exists():
+            sources.append((kiro_root.glob("*/sess_*/messages.jsonl"),
+                            lambda p: parser.parse_kiro_session(p.parent), KIRO_PREFIX))
+        for files, parse, prefix in sources:
+            ci, cm, cs = _index_external(con, files, parse, prefix, external_prior, seen, incremental)
             sessions_indexed += ci
             messages_indexed += cm
             sessions_skipped += cs

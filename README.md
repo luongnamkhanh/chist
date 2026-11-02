@@ -4,6 +4,8 @@
 
 It also indexes Codex rollouts (`~/.codex/sessions/**/rollout-*.jsonl`, override with `CODEX_HOME`) into the same index under `codex-<uuid>` ids, so either tool can search, resume, or take over the other's sessions.
 
+Kiro sessions (`~/.kiro/sessions/*/sess_*/messages.jsonl`, override with `KIRO_HOME`) are indexed the same way under `kiro-<uuid>` ids, keyed by the session's first workspace path.
+
 ## Install
 
 ```
