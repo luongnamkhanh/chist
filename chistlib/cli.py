@@ -14,8 +14,10 @@ def _cmd_index(args: argparse.Namespace) -> int:
         db_path=paths.db_path(),
         projects_root=paths.projects_dir(),
         incremental=args.incremental,
-        codex_root=paths.codex_sessions_dir(),
+        codex_root=paths.codex_sessions_dirs(),
         kiro_root=paths.kiro_sessions_dir(),
+        agy_root=paths.agy_brain_dir(),
+        agy_summaries_db=paths.agy_summaries_db_path(),
     )
     if not args.quiet:
         print(

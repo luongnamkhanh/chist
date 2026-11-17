@@ -1,13 +1,14 @@
 ---
 name: claude-history
-description: Use when the user asks to find, recall, resume, summarize, or export a past Claude Code, Codex, or Kiro conversation, or to continue/take over a session started in the other tool. Triggers on phrases like "find that chat about X", "what did we decide about Y last week", "resume the session where we did Z", "continue the codex session", "pick up what Claude was doing", "show prior sessions on this project". Auto-invokes the chist CLI.
+description: Use when the user asks to find, recall, resume, summarize, or export a past Claude Code, Codex, Kiro, or Antigravity conversation, or to continue/take over a session started in the other tool. Triggers on phrases like "find that chat about X", "what did we decide about Y last week", "resume the session where we did Z", "continue the codex session", "pick up what Claude was doing", "show prior sessions on this project". Auto-invokes the chist CLI.
 ---
 
 # Claude History Skill
 
-`chist` indexes three stores into one search index: Claude Code (`~/.claude/projects`),
-Codex (`~/.codex/sessions`), and Kiro (`~/.kiro/sessions`). Codex ids carry a `codex-`
-prefix and Kiro ids a `kiro-` prefix; all use the same project key (cwd with `/` replaced by `-`).
+`chist` indexes four stores into one search index: Claude Code (`~/.claude/projects`),
+Codex (`~/.codex/sessions`), Kiro (`~/.kiro/sessions`), and Antigravity (`~/.gemini/antigravity-cli/brain`).
+Codex ids carry `codex-`, Kiro ids carry `kiro-`, and Antigravity ids carry `agy-`; all use
+the same project key (cwd with `/` replaced by `-`).
 
 When the user asks to find or recall a past conversation:
 
@@ -16,7 +17,7 @@ When the user asks to find or recall a past conversation:
 3. Default to the cwd's project: run
    `chist search "<query>" --project="$(pwd | tr / -)" --limit 10 --format json`.
    For the latest sessions instead of a keyword: `chist list --project="$(pwd | tr / -)" --limit 10`.
-4. Present a numbered list with date, tool (Claude, Codex, or Kiro), project, and snippet.
+4. Present a numbered list with date, tool (Claude, Codex, Kiro, or Antigravity), project, and snippet.
 5. Ask the user which session to resume or export (skip if they already named it).
 6. Run `chist resume <id>` for context, or `chist export <id>` for a saved file.
 7. If the summary is insufficient, run `chist resume <id> --full`.

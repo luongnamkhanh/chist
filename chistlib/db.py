@@ -86,7 +86,9 @@ def connect(path: Path):
 
 
 def short_id(sid: str) -> str:
-    """8-char display id; Codex/Kiro ids keep their tool prefix (Codex UUIDv7 heads collide)."""
+    """8-char display id; Codex/Kiro/Agy ids keep their tool prefix."""
     if sid.startswith("codex-"):
         return sid[:14]
-    return sid[:13] if sid.startswith("kiro-") else sid[:8]
+    if sid.startswith("kiro-"):
+        return sid[:13]
+    return sid[:12] if sid.startswith("agy-") else sid[:8]

@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Sequence
 
 from chistlib import db, parser, paths
 
@@ -56,6 +57,7 @@ def _upsert_session(con, session_id: str, project: str, file_path: Path,
 
 CODEX_PREFIX = "codex-"
 KIRO_PREFIX = "kiro-"
+AGY_PREFIX = "agy-"
 
 
 def _index_external(con, files, parse, prefix: str, prior: dict, seen: set,
@@ -84,13 +86,19 @@ def _index_external(con, files, parse, prefix: str, prior: dict, seen: set,
 
 
 def index(db_path: Path, projects_root: Path, incremental: bool = True,
-          codex_root: Path | None = None, kiro_root: Path | None = None) -> IndexResult:
+          codex_root: Path | Sequence[Path] | None = None, kiro_root: Path | None = None,
+          agy_root: Path | None = None, agy_summaries_db: Path | None = None) -> IndexResult:
     start = time.time()
     sessions_indexed = 0
     messages_indexed = 0
     sessions_skipped = 0
+    codex_roots = (
+        [codex_root] if isinstance(codex_root, Path)
+        else list(codex_root) if codex_root is not None
+        else []
+    )
 
-    if not any(r and r.exists() for r in (projects_root, codex_root, kiro_root)):
+    if not any(r and r.exists() for r in (projects_root, *codex_roots, kiro_root, agy_root)):
         return IndexResult(0, 0, 0, time.time() - start)
 
     db.init_schema(db_path)
@@ -100,7 +108,7 @@ def index(db_path: Path, projects_root: Path, incremental: bool = True,
         prior = {r["session_id"]: r["file_mtime"] for r in rows}
         external_prior = {
             r["file_path"]: (r["session_id"], r["file_mtime"])
-            for r in rows if r["session_id"].startswith((CODEX_PREFIX, KIRO_PREFIX))
+            for r in rows if r["session_id"].startswith((CODEX_PREFIX, KIRO_PREFIX, AGY_PREFIX))
         }
 
         seen: set[str] = set()
@@ -122,11 +130,16 @@ def index(db_path: Path, projects_root: Path, incremental: bool = True,
             messages_indexed += n
 
         sources = []
-        if codex_root is not None and codex_root.exists():
-            sources.append((codex_root.glob("*/*/*/rollout-*.jsonl"), parser.parse_codex_file, CODEX_PREFIX))
+        for cr in codex_roots:
+            if cr.exists():
+                sources.append((cr.glob("*/*/*/rollout-*.jsonl"), parser.parse_codex_file, CODEX_PREFIX))
         if kiro_root is not None and kiro_root.exists():
             sources.append((kiro_root.glob("*/sess_*/messages.jsonl"),
                             lambda p: parser.parse_kiro_session(p.parent), KIRO_PREFIX))
+        if agy_root is not None and agy_root.exists():
+            wmap = parser.agy_workspace_map(agy_summaries_db)
+            sources.append((agy_root.glob("*/.system_generated/logs/transcript.jsonl"),
+                            lambda p, m=wmap: parser.parse_agy_session(p, m), AGY_PREFIX))
         for files, parse, prefix in sources:
             ci, cm, cs = _index_external(con, files, parse, prefix, external_prior, seen, incremental)
             sessions_indexed += ci

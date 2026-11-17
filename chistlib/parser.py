@@ -165,3 +165,90 @@ def parse_kiro_session(session_dir: Path) -> tuple[str, str, list[Record]]:
             if rec is not None:
                 records.append(rec)
     return sid, cwd, records
+
+
+def agy_workspace_map(summaries_db: Optional[Path]) -> dict[str, str]:
+    """Return {conversation_id: first_workspace_path} from Antigravity's SQLite db."""
+    if summaries_db is None or not summaries_db.exists():
+        return {}
+    import sqlite3
+    from urllib.parse import unquote, urlparse
+    out: dict[str, str] = {}
+    try:
+        con = sqlite3.connect(f"file:{summaries_db}?mode=ro", uri=True, timeout=2.0)
+        try:
+            rows = con.execute(
+                "SELECT conversation_id, workspace_uris FROM conversation_summaries"
+            ).fetchall()
+        finally:
+            con.close()
+    except sqlite3.Error:
+        return {}
+    for cid, raw in rows:
+        try:
+            uris = json.loads(raw) if raw else []
+        except json.JSONDecodeError:
+            continue
+        if isinstance(uris, list) and uris:
+            u = urlparse(uris[0])
+            out[cid] = unquote(u.path) if u.scheme == "file" else uris[0]
+    return out
+
+
+def _unwrap_agy_args(args: dict) -> dict:
+    out = {}
+    for k, v in (args or {}).items():
+        if isinstance(v, str) and len(v) >= 2 and v[0] == '"' and v[-1] == '"':
+            try:
+                out[k] = json.loads(v)
+                continue
+            except json.JSONDecodeError:
+                pass
+        out[k] = v
+    return out
+
+
+def _extract_agy_user_text(text: str) -> str:
+    start = text.find("<USER_REQUEST>\n")
+    end = text.find("\n</USER_REQUEST>")
+    if start != -1 and end != -1 and end > start:
+        return text[start + len("<USER_REQUEST>\n"):end]
+    return text
+
+
+def parse_agy_session(transcript: Path, workspace_map: Optional[dict[str, str]] = None) -> tuple[str, str, list[Record]]:
+    """Return (session_id, cwd, records) for an Antigravity transcript.jsonl."""
+    # <appDataDir>/brain/<uuid>/.system_generated/logs/transcript.jsonl
+    sid = transcript.parent.parent.parent.name
+    cwd = (workspace_map or {}).get(sid, "")
+    records: list[Record] = []
+    with transcript.open("r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            try:
+                obj = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(obj, dict):
+                continue
+            stype, ts = obj.get("type"), obj.get("created_at")
+            if stype == "USER_INPUT":
+                text = _extract_agy_user_text(obj.get("content") or "")
+                if text:
+                    records.append(Record(role="user", timestamp=ts, content=text))
+            elif stype == "PLANNER_RESPONSE":
+                text = obj.get("content") or ""
+                if text:
+                    records.append(Record(role="assistant", timestamp=ts, content=text))
+                for tc in obj.get("tool_calls") or []:
+                    if isinstance(tc, dict):
+                        args = _unwrap_agy_args(tc.get("args") or {})
+                        records.append(Record(
+                            role="tool_use",
+                            timestamp=ts,
+                            content=f"[tool_use:{tc.get('name', '')}] {json.dumps(args, ensure_ascii=False)}",
+                        ))
+            elif stype == "GENERIC":
+                text = obj.get("content") or ""
+                if text:
+                    records.append(Record(role="tool_result", timestamp=ts, content=f"[tool_result] {text}"))
+    return sid, cwd, records

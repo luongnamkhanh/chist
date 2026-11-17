@@ -16,8 +16,29 @@ def codex_sessions_dir() -> Path:
     return Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "sessions"
 
 
+def codex_sessions_dirs() -> list[Path]:
+    if "CODEX_HOME" in os.environ:
+        return [Path(os.environ["CODEX_HOME"]) / "sessions"]
+    return [
+        Path.home() / ".codex" / "sessions",
+        Path.home() / ".local" / "share" / "doer-codex" / "sessions",
+    ]
+
+
 def kiro_sessions_dir() -> Path:
     return Path(os.environ.get("KIRO_HOME", Path.home() / ".kiro")) / "sessions"
+
+
+def agy_home() -> Path:
+    return Path(os.environ.get("AGY_HOME", Path.home() / ".gemini" / "antigravity-cli"))
+
+
+def agy_brain_dir() -> Path:
+    return agy_home() / "brain"
+
+
+def agy_summaries_db_path() -> Path:
+    return agy_home() / "conversation_summaries.db"
 
 
 def db_path() -> Path:
