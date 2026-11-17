@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Sequence
 
 from chistlib import db, parser, paths
 
@@ -85,14 +86,19 @@ def _index_external(con, files, parse, prefix: str, prior: dict, seen: set,
 
 
 def index(db_path: Path, projects_root: Path, incremental: bool = True,
-          codex_root: Path | None = None, kiro_root: Path | None = None,
+          codex_root: Path | Sequence[Path] | None = None, kiro_root: Path | None = None,
           agy_root: Path | None = None, agy_summaries_db: Path | None = None) -> IndexResult:
     start = time.time()
     sessions_indexed = 0
     messages_indexed = 0
     sessions_skipped = 0
+    codex_roots = (
+        [codex_root] if isinstance(codex_root, Path)
+        else list(codex_root) if codex_root is not None
+        else []
+    )
 
-    if not any(r and r.exists() for r in (projects_root, codex_root, kiro_root, agy_root)):
+    if not any(r and r.exists() for r in (projects_root, *codex_roots, kiro_root, agy_root)):
         return IndexResult(0, 0, 0, time.time() - start)
 
     db.init_schema(db_path)
@@ -124,8 +130,9 @@ def index(db_path: Path, projects_root: Path, incremental: bool = True,
             messages_indexed += n
 
         sources = []
-        if codex_root is not None and codex_root.exists():
-            sources.append((codex_root.glob("*/*/*/rollout-*.jsonl"), parser.parse_codex_file, CODEX_PREFIX))
+        for cr in codex_roots:
+            if cr.exists():
+                sources.append((cr.glob("*/*/*/rollout-*.jsonl"), parser.parse_codex_file, CODEX_PREFIX))
         if kiro_root is not None and kiro_root.exists():
             sources.append((kiro_root.glob("*/sess_*/messages.jsonl"),
                             lambda p: parser.parse_kiro_session(p.parent), KIRO_PREFIX))

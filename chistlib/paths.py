@@ -16,6 +16,15 @@ def codex_sessions_dir() -> Path:
     return Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")) / "sessions"
 
 
+def codex_sessions_dirs() -> list[Path]:
+    if "CODEX_HOME" in os.environ:
+        return [Path(os.environ["CODEX_HOME"]) / "sessions"]
+    return [
+        Path.home() / ".codex" / "sessions",
+        Path.home() / ".local" / "share" / "doer-codex" / "sessions",
+    ]
+
+
 def kiro_sessions_dir() -> Path:
     return Path(os.environ.get("KIRO_HOME", Path.home() / ".kiro")) / "sessions"
 

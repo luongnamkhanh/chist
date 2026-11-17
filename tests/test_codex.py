@@ -6,11 +6,11 @@ from chistlib import db, indexer
 from tests import fixtures
 
 
-def _rollout(root: Path) -> Path:
-    p = root / "codex" / "2026" / "10" / "23" / "rollout-x-abc.jsonl"
+def _rollout(root: Path, folder: str = "codex", sid: str = "abc") -> Path:
+    p = root / folder / "2026" / "10" / "23" / f"rollout-x-{sid}.jsonl"
     ri = lambda payload, ts="2026-10-23T02:00:00Z": {"timestamp": ts, "type": "response_item", "payload": payload}
     fixtures.write_jsonl(p, [
-        {"type": "session_meta", "payload": {"id": "abc", "cwd": "/workspace/proj"}},
+        {"type": "session_meta", "payload": {"id": sid, "cwd": "/workspace/proj"}},
         ri({"type": "message", "role": "developer", "content": [{"type": "input_text", "text": "sys"}]}),
         ri({"type": "message", "role": "user", "content": [{"type": "input_text", "text": "<environment_context>x"}]}),
         ri({"type": "message", "role": "user", "content": [{"type": "input_text", "text": "fix the monitor"}]}),
@@ -38,6 +38,21 @@ class TestCodexIndex(unittest.TestCase):
             self.assertEqual((again.sessions_indexed, again.sessions_skipped), (0, 1))
             full = indexer.index(dbp, root / "projects", incremental=False, codex_root=root / "codex")
             self.assertEqual(full.sessions_indexed, 1)
+
+    def test_multiple_codex_roots_indexed_together(self):
+        with tempfile.TemporaryDirectory() as t:
+            root = Path(t)
+            dbp = root / "history.db"
+            _rollout(root, folder="codex1", sid="s1")
+            _rollout(root, folder="codex2", sid="s2")
+            res = indexer.index(
+                dbp, root / "projects", incremental=False,
+                codex_root=[root / "codex1", root / "codex2", root / "missing"],
+            )
+            self.assertEqual(res.sessions_indexed, 2)
+            with db.connect(dbp) as con:
+                ids = {r["session_id"] for r in con.execute("SELECT session_id FROM sessions")}
+            self.assertEqual(ids, {"codex-s1", "codex-s2"})
 
 
 if __name__ == "__main__":
