@@ -57,12 +57,16 @@ def extract(records: Iterable[Record]) -> Distill:
         if r.role != "tool_use":
             continue
         name, payload = _parse_tool_use(r.content)
-        if name in {"Read", "Edit", "Write", "NotebookEdit", "read_file", "fs_write", "fs_append", "str_replace"}:
-            fp = payload.get("file_path") or payload.get("path")
+        if name in {
+            "Read", "Edit", "Write", "NotebookEdit",
+            "read_file", "fs_write", "fs_append", "str_replace",
+            "edit_file", "write_file",
+        }:
+            fp = payload.get("file_path") or payload.get("path") or payload.get("Path")
             if fp:
                 file_counter[fp] = file_counter.get(fp, 0) + 1
-        if name in {"Bash", "execute_bash"}:
-            cmd = payload.get("command")
+        if name in {"Bash", "execute_bash", "run_command"}:
+            cmd = payload.get("command") or payload.get("CommandLine")
             if cmd:
                 cmd_counter[cmd] += 1
 

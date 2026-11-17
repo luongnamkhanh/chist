@@ -6,6 +6,8 @@ It also indexes Codex rollouts (`~/.codex/sessions/**/rollout-*.jsonl`, override
 
 Kiro sessions (`~/.kiro/sessions/*/sess_*/messages.jsonl`, override with `KIRO_HOME`) are indexed the same way under `kiro-<uuid>` ids, keyed by the session's first workspace path.
 
+Antigravity CLI sessions (`~/.gemini/antigravity-cli/brain/<uuid>/.system_generated/logs/transcript.jsonl`, override with `AGY_HOME`) are indexed under `agy-<uuid>` ids, keyed by the first workspace path from `conversation_summaries.db`.
+
 ## Install
 
 ```
